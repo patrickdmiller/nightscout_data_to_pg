@@ -89,4 +89,12 @@ module.exports = {
       [_id, eventType, date, dateString, glucose, insulin, carbs, units]
     );
   },
+  dump: async()=>{
+    const res = {}
+    res.entries = await pool.query(`SELECT * FROM entries ORDER BY date ASC`)
+    res.entries = res.entries.rows
+    res.treatments = await pool.query(`SELECT * FROM treatments ORDER BY date ASC`)
+    res.treatments = res.treatments.rows
+    return res
+  }
 };

@@ -63,6 +63,92 @@ main.init = () => {
   return pg.init().then(() => ns.init());
 };
 
+main.dump = async ({ format = "json" } = {}) => {
+  return pg.dump().then((data) => {
+    let s = parseInt(data.entries[0].date);
+    const spacing = 300000;
+    let i = 0;
+    const d = [];
+    let last = null;
+    while (i < data.entries.length) {
+      last = [data.entries[i], s];
+      if (parseInt(data.entries[i].date) == s) {
+        d.push({ sgv: data.entries[i].sgv, date: s, carbs: 0, insulin: 0 });
+
+        i++;
+      } else {
+        //figure out which is closer and take a weighted midpoint
+        //loop over i until its >
+        while (true && i < data.entries.length) {
+          if (parseInt(data.entries[i].date) == s) {
+            d.push({ sgv: data.entries[i].sgv, date: s, carbs: 0, insulin: 0 });
+            i++;
+            s += spacing;
+            break;
+          }
+
+          if (parseInt(data.entries[i].date) > s) {
+            //in between i-1 and i
+            let left = Math.abs(parseInt(data.entries[i - 1].date) - s);
+            let right = Math.abs(parseInt(data.entries[i].date) - s);
+            let lr = left + right;
+            //the formula is ((lr - distance(left) / lr) * left_value) +
+            let v = ((lr - left) / lr) * data.entries[i - 1].sgv + ((lr - right) / lr) * data.entries[i].sgv;
+            d.push({ sgv: v, date: s, carbs: 0, insulin: 0 });
+            i++;
+            s += spacing;
+            break;
+          } else {
+            i++;
+            if (i >= data.entries.length) {
+              d.push({ sgv: data.entries[i - 1].sgv, date: s, carbs: 0, insulin: 0 });
+            }
+          }
+        }
+      }
+      s += spacing;
+    }
+
+    let ts = data.treatments;
+    let j = 0;
+    function u({ index, carbs, insulin, sgv } = {}) {
+      if (sgv) {
+        if (Math.abs(d[index].sgv - sgv) > 20) {
+          console.log("error. sgv diff", sgv, d[index].sgv);
+        }
+      }
+      d[index].carbs = carbs;
+      d[index].insulin = insulin;
+    }
+    for (let i = 0; i < ts.length; i++) {
+      let tsd = parseInt(ts[i].date);
+      while (d[j].date < tsd) {
+        j++;
+      }
+      if (j > 0) {
+        //which one is closer?
+        let which = j;
+        if (tsd - d[j - 1].date < d[j].date - tsd) {
+          which = j - 1;
+        }
+        u({ index: which, carbs: ts[i].carbs, insulin: ts[i].insulin, sgv: ts[i].glucose });
+      } else {
+        u({ index: j, carbs: ts[i].carbs, insulin: ts[i].insulin, sgv: ts[i].glucose });
+      }
+    }
+
+    console.log(last);
+    if (format == "json") return { d };
+    if (format == "csv") {
+      let r = "date,sgv,carbs,insulin\n";
+      for(let i =0; i < d.length; i++){
+        r+=`${d[i].date},${d[i].sgv},${d[i].carbs},${d[i].insulin}\n`
+      }
+      return r
+    }
+  });
+};
+
 main.end = async () => {
   return pg.end().then(() => ns.close());
 };
