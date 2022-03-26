@@ -70,12 +70,39 @@ main.dump = async ({ format = "json" } = {}) => {
     let i = 0;
     const d = [];
     let last = null;
+    while (i < data.entries.length){
+      while(parseInt(data.entries[i].date) < s){
+        i++
+        if(i >=data.entries.length ){
+          break;
+        }
+      }
+      if(i >=data.entries.length){
+        d.push({ sgv: data.entries[i - 1].sgv, date: s, carbs: 0, insulin: 0 });
+        break;
+      }
+      if(parseInt(data.entries[i].date) == s || i==0){
+        d.push({ sgv: data.entries[i].sgv, date: s, carbs: 0, insulin: 0 });
+      }else{
+        //what is closer?
+        let left = Math.abs(parseInt(data.entries[i - 1].date) - s);
+        let right = Math.abs(parseInt(data.entries[i].date) - s);
+        let lr = left + right;
+        let v = ((lr - left) / lr) * data.entries[i - 1].sgv + ((lr - right) / lr) * data.entries[i].sgv;
+        d.push({ sgv: v, date: s, carbs: 0, insulin: 0 });
+      }
+
+
+      s+=spacing
+    }
+    /*
     while (i < data.entries.length) {
       last = [data.entries[i], s];
       if (parseInt(data.entries[i].date) == s) {
         d.push({ sgv: data.entries[i].sgv, date: s, carbs: 0, insulin: 0 });
-
+        s += spacing;
         i++;
+        // continue
       } else {
         //figure out which is closer and take a weighted midpoint
         //loop over i until its >
@@ -106,22 +133,31 @@ main.dump = async ({ format = "json" } = {}) => {
           }
         }
       }
-      s += spacing;
+      // s += spacing;
+    }*/
+    for(let i =1; i < d.length; i++){
+      if(d[i].date - d[i-1].date > spacing){
+        logger.error("????")
+      }
     }
-
+    logger.error(d.length, "start:", d[0].date, "end:", d[d.length-1].date)
+    // return {d}
     let ts = data.treatments;
     let j = 0;
-    function u({ index, carbs, insulin, sgv } = {}) {
+    let uu =0
+    function u({ index, carbs=0, insulin=0, sgv } = {}) {
       if (sgv) {
         if (Math.abs(d[index].sgv - sgv) > 20) {
-          console.log("error. sgv diff", sgv, d[index].sgv);
+          // console.log("error. sgv diff", sgv, d[index].sgv, d[index].date ,+uu);
         }
       }
-      d[index].carbs = carbs;
-      d[index].insulin = insulin;
+      d[index].carbs = carbs || 0;
+      d[index].insulin = insulin || 0;
     }
+
     for (let i = 0; i < ts.length; i++) {
       let tsd = parseInt(ts[i].date);
+      // console.log(tsd)1647870840000
       while (d[j].date < tsd) {
         j++;
       }
@@ -137,7 +173,11 @@ main.dump = async ({ format = "json" } = {}) => {
       }
     }
 
-    console.log(last);
+    for(let i =0; i < d.length; i++){
+      let date = new Date(d[i].date)
+      let m = (date.getHours()*60) + date.getMinutes()
+      d[i].ts = m
+    }
     if (format == "json") return { d };
     if (format == "csv") {
       let r = "date,sgv,carbs,insulin\n";
