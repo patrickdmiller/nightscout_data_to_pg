@@ -58,6 +58,10 @@ module.exports = {
     //return the pool
     logger.info("pg ready")
   },
+  empty: async ()=>{
+    await pool.query(`DELETE FROM entries`)
+    await pool.query(`DELETE from treatments`)
+  },
   end:()=>{return pool.end()},
   insertEntry: async ({ _id, sgv, date, trend, direction, device, type }) => {
     //insert a new entry

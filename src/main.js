@@ -4,7 +4,13 @@ const logger = require("node-color-log");
 const { Pool } = require("pg/lib");
 const main = {};
 main.ready = false;
+let busy = false
 main.load = async ({ all = false, dryrun = false } = {}) => {
+  if(busy){
+    logger.warn("busy")
+    return null
+  }
+  busy = true
   logger.info("loading entries");
   let latestEntry;
   let latestEntry_date = 0;
@@ -55,8 +61,13 @@ main.load = async ({ all = false, dryrun = false } = {}) => {
       logger.error(e);
     }
   }
-
+  busy = false;
   logger.info("done insertinig", promises.length);
+};
+
+main.reload = async()=>{
+  await pg.empty()
+  return main.load({all:true})
 };
 
 main.init = () => {
@@ -118,7 +129,7 @@ main.dump = async ({ format = "json", history=-1 } = {}) => {
     for (let i = 0; i < ts.length; i++) {
       let tsd = parseInt(ts[i].date);
       // console.log(tsd)1647870840000
-      while (d[j].date < tsd) {
+      while (j < d.length && d[j].date < tsd) {
         j++;
       }
       if (j > 0) {
