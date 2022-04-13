@@ -129,7 +129,7 @@ main.dump = async ({ format = "json", history=-1 } = {}) => {
     for (let i = 0; i < ts.length; i++) {
       let tsd = parseInt(ts[i].date);
       // console.log(tsd)1647870840000
-      while (j < d.length && d[j].date < tsd) {
+      while (j < d.length-1 && d[j].date < tsd) {
         j++;
       }
       if (j > 0) {
